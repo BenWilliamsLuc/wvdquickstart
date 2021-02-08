@@ -1,188 +1,210 @@
 {
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
-    "parameters": {
-        "domainName": {
-            "type": "string",
-            "metadata": {
-            "description": "Fully Qualified Domain Name, such as 'wvddomain.onmicrosoft.com'"
-            }
-        },
-        "azureAdminUpn": {
-            "type": "string",
-            "metadata": {
-                "description": "The UPN of the account that you're currently logged in with on the Azure Portal. This account should at least have the 'contributor' or 'owner' role on the subscription level for the deployment to succeed. The template will fail if you enter a user account that requires MFA."
-            }
-        },
-        "azureAdminPassword": {
-            "type": "securestring",
-            "metadata": {
-                "description": "The password that corresponds to the Azure admin UPN above."
-            }
-        },
-        "optionalNotificationEmail": {
-            "type": "string",
-            "metadata": {
-                "description": "If desired, you can provide an email address to which we'll send a notification once your WVD deployment completes. DevOps will, by default, attempt to send an email to your Azure account, regardless of whether you provide a value here."
-            },
-            "defaultValue": ""
-        },
-        "utcValue": {
-            "type": "string",
-            "metadata": {
-                "description": "Please leave this value as '[utcNow()]', as this is used to generate unique names in the deployment. This is a requirement for resources like a keyvault or storage account."
-            },
-            "defaultValue": "[utcNow()]"
-        }
+  "parameters": {
+    "azureAdminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "The password that corresponds to the Azure admin UPN above."
+      }
     },
-    "variables": {
-         "_artifactsLocation": "https://raw.githubusercontent.com/stgeorgi/wvdquickstart/master",
-        "AdminPasswordSecret": "adminPassword",
-        "domainUsername": "domainJoiner",
-        "vnetName": "aaddsVnet",
-        "subnetName": "aaddsSubnet",
-        "vnetAddressPrefix": "10.0.0.0/16",
-        "subnetAddressPrefix": "10.0.0.0/24",
-        "domainName": "[parameters('domainName')]",
-        "identityName": "WVDServicePrincipal",
-        "location": "[resourcegroup().location]",
-        "rgName": "[resourcegroup().name]",
-        "keyvaultName": "[concat('keyvault', parameters('utcValue'))]",
-        "assetsName": "[concat('assets', toLower(skip(parameters('utcValue'), 4)))]",
-        "profilesName": "[concat('profiles', toLower(skip(parameters('utcValue'), 4)))]",
-        "autoAccountName": "[concat('automation', toLower(skip(parameters('utcValue'), 9)))]",
-        "tenantId": "[subscription().tenantId]",
-        "jobGuid0": "[guid(toLower(uniquestring(variables('identityName'), resourceGroup().id, parameters('utcValue'),'credentials')))]",
-        "jobGuid": "[guid(toLower(uniquestring(variables('identityName'), resourceGroup().id, parameters('utcValue'),variables('autoAccountName'))))]",
-        "jobGuid2": "[guid(toLower(uniquestring(variables('identityName'), subscription().id, parameters('utcValue'),'devOpsSetup')))]",
-        "devOpsName": "[concat('WVDQuickStartOrg', skip(parameters('utcValue'), 9))]",   
-        "devOpsProjectName": "[concat('WVDQuickStartProj', skip(parameters('utcValue'), 9))]",
-        "targetGroup": "WVDTestUsers",
-        "automationVariables": [
-            {
-                "name": "subscriptionid",
-                "value": "[concat('\"',subscription().subscriptionId,'\"')]"
-            },
-            {
-                "name": "accountName",
-                "value": "[concat('\"',variables('autoAccountName'),'\"')]"
-            },
-            {
-                "name": "AppName",
-                "value": "[concat('\"',variables('identityName'),'\"')]"
-            },
-            {
-                "name": "ResourceGroupName",
-                "value": "[concat('\"',variables('rgName'),'\"')]"
-            },
-            {
-                "name": "fileURI",
-                "value": "[concat('\"',variables('_artifactsLocation'),'\"')]"
-            },
-            {
-                "name": "orgName",
-                "value": "[concat('\"',variables('devOpsName'),'\"')]"
-            },
-            {
-                "name": "projectName",
-                "value": "[concat('\"',variables('devOpsProjectName'),'\"')]"
-            },
-            {
-                "name": "location",
-                "value": "[concat('\"',variables('location'),'\"')]"
-            },
-            {
-                "name": "adminUsername",
-                "value": "[concat('\"',variables('domainUsername'),'\"')]"
-            },
-                        {
-                "name": "domainName",
-                "value": "[concat('\"',variables('domainName'),'\"')]"
-            },
-            {
-                "name": "keyvaultName",
-                "value": "[concat('\"',variables('keyvaultName'),'\"')]"
-            },
-            {
-                "name": "assetsName",
-                "value": "[concat('\"',variables('assetsName'),'\"')]"
-            },
-            {
-                "name": "profilesName",
-                "value": "[concat('\"',variables('profilesName'),'\"')]"
-            },
-            {
-                "name": "existingVnetName",
-                "value": "[concat('\"',variables('vnetName'),'\"')]"
-            },
-            {
-                "name": "existingSubnetName",
-                "value": "[concat('\"',variables('subnetName'),'\"')]"
-            },
-            {
-                "name": "targetGroup",
-                "value": "[concat('\"', variables('targetGroup'),'\"')]"
-            },
-            {
-                "name": "identityApproach",
-                "value": "[concat('\"','Azure AD DS','\"')]"
-            },
-            {
-                "name": "notificationEmail",
-                "value": "[concat('\"',parameters('optionalNotificationEmail'),'\"')]"
-            }
-        ],   
-        "domainServicesNSGName": "[concat(variables('subnetName'), '-nsg')]",
-        "nsgRefId": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('domainServicesNSGName'))]",
-        "vnetRefId": "[resourceId('Microsoft.Network/virtualNetworks/', variables('vnetName'))]",
-        "subnetRefId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]",
-        "PSRemotingSlicePIPAddresses": [
-            "52.180.179.108",
-            "52.180.177.87",
-            "13.75.105.168",
-            "52.175.18.134",
-            "52.138.68.41",
-            "52.138.65.157",
-            "104.41.159.212",
-            "104.45.138.161",
-            "52.169.125.119",
-            "52.169.218.0",
-            "52.187.19.1",
-            "52.187.120.237",
-            "13.78.172.246",
-            "52.161.110.169",
-            "52.174.189.149",
-            "40.68.160.142",
-            "40.83.144.56",
-            "13.64.151.161"
-        ],
-        "RDPIPAddresses": [
-            "207.68.190.32/27",
-            "13.106.78.32/27",
-            "13.106.174.32/27",
-            "13.106.4.96/27"
-        ],
-        "PSRemotingSliceTIPAddresses": [
-            "52.180.183.67",
-            "52.180.181.39",
-            "52.175.28.111",
-            "52.175.16.141",
-            "52.138.70.93",
-            "52.138.64.115",
-            "40.80.146.22",
-            "40.121.211.60",
-            "52.138.143.173",
-            "52.169.87.10",
-            "13.76.171.84",
-            "52.187.169.156",
-            "13.78.174.255",
-            "13.78.191.178",
-            "40.68.163.143",
-            "23.100.14.28",
-            "13.64.188.43",
-            "23.99.93.197"
-        ]
+    "azureAdminUpn": {
+      "type": "string",
+      "metadata": {
+        "description": "The UPN of the account that you're currently logged in with on the Azure Portal. This account should at least have the 'contributor' or 'owner' role on the subscription level for the deployment to succeed. The template will fail if you enter a user account that requires MFA."
+      }
     },
+    "domainName": {
+      "type": "string",
+      "metadata": {
+        "description": "Fully Qualified Domain Name, such as 'wvddomain.onmicrosoft.com'"
+      }
+    },
+    "optionalNotificationEmail": {
+      "type": "string",
+      "metadata": {
+        "description": "If desired, you can provide an email address to which we'll send a notification once your WVD deployment completes. DevOps will, by default, attempt to send an email to your Azure account, regardless of whether you provide a value here."
+      },
+      "defaultValue": ""
+    },
+    "utcValue": {
+      "type": "string",
+      "metadata": {
+        "description": "Please leave this value as '[utcNow()]', as this is used to generate unique names in the deployment. This is a requirement for resources like a keyvault or storage account."
+      },
+      "defaultValue": "[utcNow()]"
+    },
+    "wvdMetadataLocation": {
+      "type": "string",
+      "defaultValue": "westus",
+      "allowedValues": [
+        "eastus",
+        "eastus2",
+        "centralus",
+        "northcentralus",
+        "southcentralus",
+        "westcentralus",
+        "westus",
+        "westus2"
+      ],
+      "metadata": {
+        "description": "Location for WVD metadata resources, which may be limited compared to other resources."
+      }
+    }
+  },
+  "variables": {
+    "_artifactsLocation": "https://raw.githubusercontent.com/BenWilliamsLuc/wvdquickstart/master",
+    "AdminPasswordSecret": "adminPassword",
+    "assetsName": "[concat('assets', toLower(skip(parameters('utcValue'), 4)))]",
+    "autoAccountName": "[concat('automation', toLower(skip(parameters('utcValue'), 9)))]",
+    "automationVariables": [
+      {
+        "name": "subscriptionid",
+        "value": "[concat('\"',subscription().subscriptionId,'\"')]"
+      },
+      {
+        "name": "accountName",
+        "value": "[concat('\"',variables('autoAccountName'),'\"')]"
+      },
+      {
+        "name": "AppName",
+        "value": "[concat('\"',variables('identityName'),'\"')]"
+      },
+      {
+        "name": "ResourceGroupName",
+        "value": "[concat('\"',variables('rgName'),'\"')]"
+      },
+      {
+        "name": "fileURI",
+        "value": "[concat('\"',variables('_artifactsLocation'),'\"')]"
+      },
+      {
+        "name": "orgName",
+        "value": "[concat('\"',variables('devOpsName'),'\"')]"
+      },
+      {
+        "name": "projectName",
+        "value": "[concat('\"',variables('devOpsProjectName'),'\"')]"
+      },
+      {
+        "name": "location",
+        "value": "[concat('\"',variables('location'),'\"')]"
+      },
+      {
+        "name": "wvdMetadataLocation",
+        "value": "[concat('\"',variables('wvdMetadataLocation'),'\"')]"
+      },
+      {
+        "name": "adminUsername",
+        "value": "[concat('\"',variables('domainUsername'),'\"')]"
+      },
+      {
+        "name": "domainName",
+        "value": "[concat('\"',variables('domainName'),'\"')]"
+      },
+      {
+        "name": "keyvaultName",
+        "value": "[concat('\"',variables('keyvaultName'),'\"')]"
+      },
+      {
+        "name": "assetsName",
+        "value": "[concat('\"',variables('assetsName'),'\"')]"
+      },
+      {
+        "name": "profilesName",
+        "value": "[concat('\"',variables('profilesName'),'\"')]"
+      },
+      {
+        "name": "existingVnetName",
+        "value": "[concat('\"',variables('vnetName'),'\"')]"
+      },
+      {
+        "name": "existingSubnetName",
+        "value": "[concat('\"',variables('subnetName'),'\"')]"
+      },
+      {
+        "name": "targetGroup",
+        "value": "[concat('\"', variables('targetGroup'),'\"')]"
+      },
+      {
+        "name": "identityApproach",
+        "value": "[concat('\"','Azure AD DS','\"')]"
+      },
+      {
+        "name": "notificationEmail",
+        "value": "[concat('\"',parameters('optionalNotificationEmail'),'\"')]"
+      }
+    ],
+    "devOpsName": "[concat('WVDQuickStartOrg', skip(parameters('utcValue'), 9))]",
+    "devOpsProjectName": "[concat('WVDQuickStartProj', skip(parameters('utcValue'), 9))]",
+    "domainName": "[parameters('domainName')]",
+    "domainServicesNSGName": "[concat(variables('subnetName'), '-nsg')]",
+    "domainUsername": "domainJoiner",
+    "identityName": "WVDServicePrincipal",
+    "jobGuid": "[guid(toLower(uniquestring(variables('identityName'), resourceGroup().id, parameters('utcValue'),variables('autoAccountName'))))]",
+    "jobGuid0": "[guid(toLower(uniquestring(variables('identityName'), resourceGroup().id, parameters('utcValue'),'credentials')))]",
+    "jobGuid2": "[guid(toLower(uniquestring(variables('identityName'), subscription().id, parameters('utcValue'),'devOpsSetup')))]",
+    "keyvaultName": "[concat('keyvault', parameters('utcValue'))]",
+    "location": "[resourcegroup().location]",
+    "nsgRefId": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('domainServicesNSGName'))]",
+    "profilesName": "[concat('profiles', toLower(skip(parameters('utcValue'), 4)))]",
+    "PSRemotingSlicePIPAddresses": [
+      "52.180.179.108",
+      "52.180.177.87",
+      "13.75.105.168",
+      "52.175.18.134",
+      "52.138.68.41",
+      "52.138.65.157",
+      "104.41.159.212",
+      "104.45.138.161",
+      "52.169.125.119",
+      "52.169.218.0",
+      "52.187.19.1",
+      "52.187.120.237",
+      "13.78.172.246",
+      "52.161.110.169",
+      "52.174.189.149",
+      "40.68.160.142",
+      "40.83.144.56",
+      "13.64.151.161"
+    ],
+    "PSRemotingSliceTIPAddresses": [
+      "52.180.183.67",
+      "52.180.181.39",
+      "52.175.28.111",
+      "52.175.16.141",
+      "52.138.70.93",
+      "52.138.64.115",
+      "40.80.146.22",
+      "40.121.211.60",
+      "52.138.143.173",
+      "52.169.87.10",
+      "13.76.171.84",
+      "52.187.169.156",
+      "13.78.174.255",
+      "13.78.191.178",
+      "40.68.163.143",
+      "23.100.14.28",
+      "13.64.188.43",
+      "23.99.93.197"
+    ],
+    "RDPIPAddresses": [
+      "207.68.190.32/27",
+      "13.106.78.32/27",
+      "13.106.174.32/27",
+      "13.106.4.96/27"
+    ],
+    "rgName": "[resourcegroup().name]",
+    "subnetAddressPrefix": "10.0.0.0/24",
+    "subnetName": "aaddsSubnet",
+    "subnetRefId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]",
+    "targetGroup": "WVDTestUsers",
+    "tenantId": "[subscription().tenantId]",
+    "vnetAddressPrefix": "10.0.0.0/16",
+    "vnetName": "aaddsVnet",
+    "vnetRefId": "[resourceId('Microsoft.Network/virtualNetworks/', variables('vnetName'))]",
+    "wvdMetadataLocation": "[parameters('wvdMetadataLocation')]"
+  },
     "resources": [
         {
             "type": "Microsoft.ManagedIdentity/userAssignedIdentities",

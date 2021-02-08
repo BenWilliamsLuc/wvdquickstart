@@ -23,6 +23,7 @@ $principalId = Get-AutomationVariable -Name 'principalId'
 $orgName = Get-AutomationVariable -Name 'orgName'
 $projectName = Get-AutomationVariable -Name 'projectName'
 $location = Get-AutomationVariable -Name 'location'
+$wvdMetadataLocation = Get-AutomationVariable -Name 'wvdMetadataLocation'
 $adminUsername = Get-AutomationVariable -Name 'adminUsername'
 $domainName = Get-AutomationVariable -Name 'domainName'
 $keyvaultName = Get-AutomationVariable -Name 'keyvaultName'
@@ -194,7 +195,7 @@ $body = @"
 {
   "parameters": {
     "gitSource": {
-      "url": "https://github.com/stgeorgi/wvdquickstart.git"
+      "url": "https://github.com/BenWilliamsLuc/wvdquickstart.git"
     }
   }
 }
@@ -313,6 +314,7 @@ $parameters = $parameters.Replace("[DomainJoinAccountUPN]", $DomainJoinAccountUP
 $parameters = $parameters.Replace("[objectId]", $ObjectId)
 $parameters = $parameters.Replace("[tenantId]", $tenant)
 $parameters = $parameters.Replace("[subscriptionId]", $subscriptionId)
+$content = $content.Replace("[wvdMetadataLocation]", $wvdMetadataLocation)
 $parameters = $parameters.Replace("[location]", $location)
 $parameters = $parameters.Replace("[adminUsername]", $adminUsername)
 $parameters = $parameters.Replace("[domainName]", $domainName)
